@@ -1,11 +1,11 @@
 pipeline {
 agent any
 stages {
-stage('Checkout') {
-steps {
-git 'https://github.com/Sourini/OTP1_inclass1_assignment_FransRastas.git'
-}
-}
+// stage('Checkout') {
+// steps {
+// git 'https://github.com/Sourini/OTP1_inclass1_assignment_FransRastas.git'
+// }
+// }
 stage('Build') {
 steps {
 bat 'mvn clean install' // sh for linux and ios
