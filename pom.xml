@@ -23,6 +23,7 @@
     </dependencies>
 
     <build>
+        <finalName>otp_jutska</finalName>
         <plugins>
             <!-- JaCoCo Plugin for Code Coverage -->
             <plugin>
