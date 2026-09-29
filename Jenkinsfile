@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-            PATH+DOCKER = 'C:\\Users\\scuba\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin'
-        }
+        PATH = "C:\\Users\\scuba\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
+    }
 
     stages {
         stage('Build') {
