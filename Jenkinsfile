@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+            PATH+DOCKER = 'C://Users//scuba//AppData//Local//Programs//DockerDesktop//resources//bin//'
+        }
+
     stages {
         stage('Build') {
             steps {
