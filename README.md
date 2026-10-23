@@ -1,142 +1,163 @@
 # Temperature Converter
 
-A small Java application created for an OTP1 in-class assignment. The project includes basic temperature-conversion logic, automated unit testing, code-coverage reporting and Docker packaging.
+JavaFX temperature converter created for OTP1 In-class Assignment 6. The application converts temperatures, calculates speed from distance and time, and saves the results in an embedded H2 database.
 
-## 1. Assignment Description
+## Assignment requirements
 
-The assignment was to implement and verify a simple temperature converter using Java and Maven.
+The application includes:
 
-The application provides the following functionality:
+- A JavaFX graphical interface.
+- Temperature conversion between Celsius, Fahrenheit, and Kelvin.
+- Speed calculation using distance and time.
+- An H2 database with two related tables.
+- Database interaction through the JavaFX interface.
+- JUnit tests and a JaCoCo coverage report.
+- A Jenkins pipeline.
+- A Docker image that can display the GUI through XMing.
 
-- Convert Fahrenheit to Celsius.
-- Convert Celsius to Fahrenheit.
-- Convert Kelvin to Celsius.
-- Determine if the temperature is extreme.
+## Technologies
 
-The main deliverables included are:
+- Java 21
+- JavaFX 21
+- Maven
+- H2 Database
+- JUnit 5
+- JaCoCo
+- Jenkins
+- Docker and Docker Hub
+- XMing or another X server
 
-- The `TemperatureConverter` Java class.
-- Automated JUnit tests.
-- JaCoCo HTML code-coverage report.
-- Maven build configuration.
-- Dockerfile for packaging and running the application.
-- Jenkins pipeline for automated testing and building the Docker image.
+## Design and implementation
 
-## 2. Technologies and Tools Used
+`TemperatureConverter` contains the temperature conversion and speed calculation methods.
 
-- **Java 21** — application implementation.
-- **Apache Maven** — dependency management, compilation, testing, and packaging.
-- **JUnit 5.10.2** — automated unit testing.
-- **Maven Surefire Plugin 3.5.5** — execution of JUnit tests.
-- **JaCoCo 0.8.11** — test-coverage measurement and HTML report generation.
-- **Jenkins** — automated CI pipeline.
-- **Docker** — container image creation and application execution.
-- **Docker Hub** — storage of published container images.
-- **Git and GitHub** — version control and source-code hosting.
-- **IntelliJ IDEA** — development environment used for the project.
+`Main` creates the JavaFX interface. The interface accepts:
 
-## 3. Design Approach and Implementation Method
+- A temperature.
+- The original temperature unit.
+- The target temperature unit.
+- Distance in kilometres.
+- Time in hours.
 
-The program uses a single class, `TemperatureConverter`, containing simple methods:
+Pressing **Convert and save** converts the temperature, calculates the speed, saves the values to the database, and refreshes the table.
 
-```java
-fahrenheitToCelsius(double fahrenheit)
-celsiusToFahrenheit(double celsius)
-kelvinToCelsius(double kelvin)
-isExtremeTemperature(double celsius)
-```
+`DBConnection` creates the database schema. `TemperatureUnitDAO` reads the available units, while `TempRecordDAO` saves and reads conversion records.
 
-The `main` method creates a converter instance and prints example Fahrenheit, Celsius, and Kelvin conversions.
+The database contains two related tables:
 
-The project's layout:
+### `temperature_unit`
 
-```text
-src/
-├── main/java/org/example/TemperatureConverter.java
-└── test/java/org/example/TemperatureConverterTest.java
-```
+Stores Celsius, Fahrenheit, and Kelvin.
 
-The Jenkins pipeline automates the following stages:
+### `temp_record`
 
-1. Build the Maven project.
-2. Run the automated tests.
-3. Generate and publish the test results.
-6. Build and run a Docker image.
+Stores:
 
-## 4. Testing and Quality Assurance Steps
+- Original and converted temperatures.
+- Original and target units.
+- Distance.
+- Time.
+- Calculated speed.
 
-### Automated test cases and results
+The `from_unit_id` and `to_unit_id` columns are foreign keys that reference the `temperature_unit` table.
 
-The JUnit test class contains four test methods covering the application's core behavior.
-
-| Test scenario | Inputs | Expected outcome |
-|---|---|---|
-| Fahrenheit to Celsius | `32`, `212`, `-40` °F | `0`, `100`, `-40` °C |
-| Celsius to Fahrenheit | `0`, `100`, `-40` °C | `32`, `212`, `-40` °F |
-| Extreme-temperature checks | Values below `-40`, above `50`, inside the range, and at both boundaries | Only values below `-40` or above `50` return `true` |
-| Kelvin to Celsius | `0`, `100`, `273.15` K | `-273.15`, `-173.15`, `0` °C |
-
-All assertions in the current test suite pass when the project is tested with Maven. Decimal results use a tolerance of `0.1`.
+## Testing and quality assurance
 
 Run the tests with:
 
 ```bash
-mvn clean test
+mvn clean verify
 ```
 
-After the tests finish, open the generated JaCoCo report at:
+The tests verify:
+
+- Fahrenheit, Celsius, and Kelvin conversions.
+- Conversions using the generic `convert` method.
+- Extreme-temperature boundaries.
+- Speed calculation.
+- Invalid input handling.
+- Creation of the related database tables.
+- Loading temperature units.
+- Saving and reading database records.
+- GUI number parsing and formatting.
+
+The JaCoCo HTML report is generated at:
 
 ```text
 target/site/jacoco/index.html
 ```
 
-### Manual verification
-
-## 5. How to Run
+## Run locally
 
 ### Prerequisites
 
 - JDK 21
-- Apache Maven 3.x
-- Git
-- Docker Desktop
+- Apache Maven
 
-### Clone the repository
+Clone the repository:
 
 ```bash
 git clone https://github.com/Sourini/OTP1_inclass1_assignment_FransRastas.git
 cd OTP1_inclass1_assignment_FransRastas
 ```
 
-### Run the tests and generate coverage
+Run the JavaFX application:
 
 ```bash
-mvn clean test
+mvn clean javafx:run
 ```
 
-### Build and run the JAR
+The embedded H2 database is created automatically inside the `data` directory.
+
+## Run with Docker and XMing
+
+### 1. Start XMing
+
+Start XMing before running the container.
+
+When using XLaunch, select:
+
+1. **Multiple windows**
+2. **Start no client**
+3. **Disable access control**
+
+### 2. Build the Docker image
 
 ```bash
-mvn clean package
-java -jar target/otp_jutska.jar
+docker build -t sourini/temperature-converter .
 ```
 
-Expected output:
-
-```text
-32°F = 0.0°C
-100°C = 212.0°F
-0 K = -273.15°C
-```
-
-### Build and run with Docker
+### 3. Run the Docker image
 
 ```bash
-docker build -t temperature-converter .
-docker run --rm temperature-converter
+docker run --rm -e DISPLAY=host.docker.internal:0.0 sourini/temperature-converter
 ```
 
-## Repository Structure
+The JavaFX window should appear through XMing.
+
+Docker Hub image:
+
+<https://hub.docker.com/r/sourini/temperature-converter>
+
+## Jenkins pipeline
+
+The Jenkins pipeline:
+
+1. Runs the Maven tests and build.
+2. Publishes the JUnit results.
+3. Publishes the JaCoCo coverage report.
+4. Builds the Docker image.
+5. Runs the JavaFX application through XMing.
+6. Pushes the build-number and `latest` tags to Docker Hub.
+
+Jenkins requires:
+
+- A Maven installation named `maven3`.
+- Docker available to the Jenkins service.
+- A Docker Hub username/password credential with the ID `dockerhub`.
+- XMing running before the **Run Docker Image** stage.
+
+## Project structure
 
 ```text
 .
@@ -144,8 +165,19 @@ docker run --rm temperature-converter
 ├── Jenkinsfile
 ├── pom.xml
 └── src
-    ├── main/java/org/example/TemperatureConverter.java
-    └── test/java/org/example/TemperatureConverterTest.java
+    ├── main/java/org/example
+    │   ├── Main.java
+    │   ├── Launcher.java
+    │   ├── TemperatureConverter.java
+    │   ├── DBConnection.java
+    │   ├── TemperatureUnit.java
+    │   ├── TemperatureUnitDAO.java
+    │   ├── TempRecord.java
+    │   └── TempRecordDAO.java
+    └── test/java/org/example
+        ├── TemperatureConverterTest.java
+        ├── DatabaseTest.java
+        └── MainTest.java
 ```
 
 ## Author

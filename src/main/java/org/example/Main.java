@@ -16,134 +16,221 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 
 public class Main extends Application {
 
-    private TemperatureUnitDAO unitDao = new TemperatureUnitDAO();
-    private TempRecordDAO recordDao = new TempRecordDAO();
-    private TemperatureConverter converter = new TemperatureConverter();
+    private final TemperatureConverter converter =
+            new TemperatureConverter();
 
-    private ObservableList<TempRecord> rows = FXCollections.observableArrayList();
-    private Label status = new Label("");
+    private final TemperatureUnitDAO unitDAO =
+            new TemperatureUnitDAO();
 
-    public static double parse(String text) {
-        return Double.parseDouble(text.trim().replace(',', '.'));
+    private final TempRecordDAO recordDAO =
+            new TempRecordDAO();
+
+    private final ObservableList<TempRecord> records =
+            FXCollections.observableArrayList();
+
+    static double parse(String text) {
+        return Double.parseDouble(
+                text.trim().replace(',', '.')
+        );
     }
 
-    public static String fmt(double number) {
-        return String.format(Locale.of("fi", "FI"), "%.2f", number);
+    static String format(double value) {
+        return String.format(Locale.US, "%.2f", value);
     }
 
     @Override
     public void start(Stage stage) throws Exception {
         DBConnection.init();
-        List<TemperatureUnit> units = unitDao.findAll();
 
-        TextField valueField = new TextField();
+        List<TemperatureUnit> units = unitDAO.findAll();
+
+        TextField temperatureField = new TextField();
         TextField distanceField = new TextField();
         TextField timeField = new TextField();
 
-        ComboBox<TemperatureUnit> fromBox = new ComboBox<>();
-        fromBox.getItems().addAll(units);
-        fromBox.getSelectionModel().select(0);
+        ComboBox<TemperatureUnit> fromBox =
+                new ComboBox<>(
+                        FXCollections.observableArrayList(units)
+                );
 
-        ComboBox<TemperatureUnit> toBox = new ComboBox<>();
-        toBox.getItems().addAll(units);
+        ComboBox<TemperatureUnit> toBox =
+                new ComboBox<>(
+                        FXCollections.observableArrayList(units)
+                );
+
+        fromBox.getSelectionModel().select(0);
         toBox.getSelectionModel().select(1);
 
-        Button saveButton = new Button("Save");
-        Button deleteButton = new Button("Delete");
+        Button saveButton =
+                new Button("Convert and save");
+
+        Label message = new Label();
 
         GridPane form = new GridPane();
-        form.setHgap(10);
-        form.setVgap(10);
-        form.addRow(0, new Label("Temperature"), valueField, fromBox, new Label("to"), toBox);
-        form.addRow(1, new Label("Distance (km)"), distanceField);
-        form.addRow(2, new Label("Time (h)"), timeField);
-        form.addRow(3, saveButton, deleteButton);
+        form.setHgap(8);
+        form.setVgap(8);
 
-        // table with the saved records
-        TableView<TempRecord> table = new TableView<>(rows);
+        form.addRow(
+                0,
+                new Label("Temperature"),
+                temperatureField,
+                fromBox,
+                new Label("to"),
+                toBox
+        );
 
-        TableColumn<TempRecord, String> idColumn = new TableColumn<>("ID");
-        idColumn.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getId())));
+        form.addRow(
+                1,
+                new Label("Distance (km)"),
+                distanceField
+        );
 
-        TableColumn<TempRecord, String> fromColumn = new TableColumn<>("From");
-        fromColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                fmt(data.getValue().getInputValue()) + " " + data.getValue().getFromSymbol()));
+        form.addRow(
+                2,
+                new Label("Time (hours)"),
+                timeField
+        );
 
-        TableColumn<TempRecord, String> toColumn = new TableColumn<>("To");
-        toColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                fmt(data.getValue().getResultValue()) + " " + data.getValue().getToSymbol()));
+        form.add(saveButton, 1, 3);
 
-        TableColumn<TempRecord, String> distanceColumn = new TableColumn<>("Distance km");
-        distanceColumn.setCellValueFactory(data -> new SimpleStringProperty(fmt(data.getValue().getDistanceKm())));
+        TableView<TempRecord> table = createTable();
+        table.setItems(records);
 
-        TableColumn<TempRecord, String> timeColumn = new TableColumn<>("Time h");
-        timeColumn.setCellValueFactory(data -> new SimpleStringProperty(fmt(data.getValue().getTimeHours())));
-
-        TableColumn<TempRecord, String> speedColumn = new TableColumn<>("Speed km/h");
-        speedColumn.setCellValueFactory(data -> new SimpleStringProperty(fmt(data.getValue().getSpeedKmh())));
-
-        table.getColumns().add(idColumn);
-        table.getColumns().add(fromColumn);
-        table.getColumns().add(toColumn);
-        table.getColumns().add(distanceColumn);
-        table.getColumns().add(timeColumn);
-        table.getColumns().add(speedColumn);
-
-        saveButton.setOnAction(e -> {
+        saveButton.setOnAction(event -> {
             try {
-                double value = parse(valueField.getText());
-                double distance = parse(distanceField.getText());
-                double time = parse(timeField.getText());
                 TemperatureUnit from = fromBox.getValue();
                 TemperatureUnit to = toBox.getValue();
 
-                double result = converter.convert(value, from.getSymbol(), to.getSymbol());
+                double input =
+                        parse(temperatureField.getText());
 
-                TempRecord record = new TempRecord(from.getId(), to.getId(), value, result, distance, time);
-                recordDao.insert(record);
-                refreshTable();
+                double distance =
+                        parse(distanceField.getText());
 
-                status.setText("Saved: " + fmt(value) + from.getSymbol() + " = " + fmt(result) + to.getSymbol());
-            } catch (NumberFormatException ex) {
-                status.setText("Please type numbers in all the fields");
-            } catch (Exception ex) {
-                status.setText("Error: " + ex.getMessage());
+                double time =
+                        parse(timeField.getText());
+
+                double result = converter.convert(
+                        input,
+                        from.symbol(),
+                        to.symbol()
+                );
+
+                TempRecord record = new TempRecord(
+                        from.id(),
+                        to.id(),
+                        from.symbol(),
+                        to.symbol(),
+                        input,
+                        result,
+                        distance,
+                        time
+                );
+
+                recordDAO.insert(record);
+                loadRecords();
+
+                message.setText(
+                        "Saved: "
+                                + format(result)
+                                + " "
+                                + to.symbol()
+                );
+            } catch (Exception exception) {
+                message.setText(
+                        "Error: " + exception.getMessage()
+                );
             }
         });
 
-        deleteButton.setOnAction(e -> {
-            TempRecord selected = table.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                status.setText("Select a row first");
-                return;
-            }
-            try {
-                recordDao.delete(selected.getId());
-                refreshTable();
-                status.setText("Deleted record " + selected.getId());
-            } catch (SQLException ex) {
-                status.setText("Error: " + ex.getMessage());
-            }
-        });
+        loadRecords();
 
-        refreshTable();
+        VBox root = new VBox(
+                10,
+                form,
+                table,
+                message
+        );
 
-        VBox root = new VBox(10, form, table, status);
-        root.setPadding(new Insets(10));
+        root.setPadding(new Insets(12));
 
         stage.setTitle("Temperature Converter");
-        stage.setScene(new Scene(root, 640, 480));
+        stage.setScene(new Scene(root, 720, 450));
         stage.show();
     }
 
-    private void refreshTable() throws SQLException {
-        rows.setAll(recordDao.findAll());
+    private TableView<TempRecord> createTable() {
+        TableView<TempRecord> table =
+                new TableView<>();
+
+        table.getColumns().add(
+                column(
+                        "From",
+                        record ->
+                                format(record.inputValue())
+                                        + " "
+                                        + record.fromSymbol()
+                )
+        );
+
+        table.getColumns().add(
+                column(
+                        "To",
+                        record ->
+                                format(record.resultValue())
+                                        + " "
+                                        + record.toSymbol()
+                )
+        );
+
+        table.getColumns().add(
+                column(
+                        "Distance km",
+                        record -> format(record.distanceKm())
+                )
+        );
+
+        table.getColumns().add(
+                column(
+                        "Time h",
+                        record -> format(record.timeHours())
+                )
+        );
+
+        table.getColumns().add(
+                column(
+                        "Speed km/h",
+                        record -> format(record.speedKmh())
+                )
+        );
+
+        return table;
+    }
+
+    private TableColumn<TempRecord, String> column(
+            String title,
+            Function<TempRecord, String> value
+    ) {
+        TableColumn<TempRecord, String> column =
+                new TableColumn<>(title);
+
+        column.setCellValueFactory(
+                data -> new SimpleStringProperty(
+                        value.apply(data.getValue())
+                )
+        );
+
+        return column;
+    }
+
+    private void loadRecords() throws Exception {
+        records.setAll(recordDAO.findAll());
     }
 
     public static void main(String[] args) {

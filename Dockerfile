@@ -1,6 +1,29 @@
-FROM maven:3.9.6-eclipse-temurin-21
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+
 WORKDIR /app
+
 COPY pom.xml .
-COPY . /app
-RUN mvn package
-CMD ["java", "-jar", "target/otp_jutska.jar"]
+COPY src ./src
+
+RUN mvn --batch-mode clean package
+
+
+FROM eclipse-temurin:21-jre-jammy
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libgtk-3-0 \
+       libx11-6 \
+       libxext6 \
+       libxrender1 \
+       libxtst6 \
+       libxi6 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=build \
+     /app/target/temperature-converter.jar \
+     app.jar
+
+CMD ["java", "-jar", "app.jar"]

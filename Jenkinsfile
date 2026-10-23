@@ -1,38 +1,24 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'maven3'
+    }
+
     environment {
-        PATH = "C:\\Users\\scuba\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         DOCKERHUB_REPO = 'sourini/temperature-converter'
     }
 
     stages {
-        stage('Build') {
+        stage('Test and Build') {
             steps {
-                bat 'mvn clean install'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                bat 'mvn test'
-            }
-        }
-
-        stage('Code Coverage') {
-            steps {
-                bat 'mvn jacoco:report'
+                bat 'mvn clean verify'
             }
         }
 
         stage('Publish Test Results') {
             steps {
-                junit '**/target/surefire-reports/*.xml'
-            }
-        }
-
-        stage('Publish Coverage Report') {
-            steps {
+                junit 'target/surefire-reports/*.xml'
                 jacoco()
             }
         }
@@ -40,26 +26,37 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKERHUB_REPO}:${env.BUILD_NUMBER}")
+                    docker.build(
+                        "${DOCKERHUB_REPO}:${BUILD_NUMBER}"
+                    )
                 }
             }
         }
 
         stage('Run Docker Image') {
             steps {
-                bat "docker run --rm ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}"
+                bat """
+                    docker run --rm ^
+                    -e DISPLAY=host.docker.internal:0.0 ^
+                    ${DOCKERHUB_REPO}:${BUILD_NUMBER}
+                """
             }
         }
 
-        stage('Push Docker Image to Docker Hub') {
+        stage('Push to Docker Hub') {
             steps {
                 script {
                     docker.withRegistry(
                         'https://index.docker.io/v1/',
-                        'dockerhub-sourini'
+                        'dockerhub'
                     ) {
-                        docker.image("${DOCKERHUB_REPO}:${env.BUILD_NUMBER}").push()
-                        docker.image("${DOCKERHUB_REPO}:${env.BUILD_NUMBER}").push('latest')
+                        docker.image(
+                            "${DOCKERHUB_REPO}:${BUILD_NUMBER}"
+                        ).push()
+
+                        docker.image(
+                            "${DOCKERHUB_REPO}:${BUILD_NUMBER}"
+                        ).push('latest')
                     }
                 }
             }
